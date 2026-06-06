@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Randbats Data Converter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f7fb;
+      color: #20232a;
+    }
+    .page {
+      max-width: 960px;
+      margin: auto;
+      padding: 24px;
+    }
+    h1 {
+      margin-top: 0;
+    }
+    p {
+      line-height: 1.6;
+    }
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 14px;
+      padding: 12px;
+      border: 1px solid #ccd0d7;
+      border-radius: 8px;
+      resize: vertical;
+      background: #fff;
+      box-sizing: border-box;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 16px 0;
+    }
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button.primary {
+      background: #0070f3;
+      color: white;
+    }
+    button.secondary {
+      background: #e2e8f0;
+      color: #111827;
+    }
+    button.danger {
+      background: #ef4444;
+      color: white;
+    }
+    .panel {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 10px;
+      background: white;
+      border: 1px solid #d2d6dc;
+    }
+    .warning {
+      border-color: #f59e0b;
+      background: #fffbeb;
+    }
+    .warning strong {
+      color: #b45309;
+    }
+    .output-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .hidden {
+      display: none;
+    }
+    .message-list {
+      margin: 0;
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>random battle sets pokemon showdown</h1>
+    <p>Include all moves and Abilities.</p>
+
+    <label class="output-label" for="inputText">Input data</label>
+    <textarea id="inputText" placeholder="POKEMON-FORME:ROLE:LEVEL:ABILITY:ITEM:MOVE1:MOVE2:MOVE3:MOVE4..."></textarea>
+
+    <div class="controls">
+      <button id="generateButton" class="primary">Generate</button>
+      <button id="clearButton" class="secondary" type="button">Clear</button>
+      <button id="loadExampleButton" class="secondary" type="button">Example</button>
+    </div>
+
+    <div id="errorPanel" class="panel hidden">
+      <p><strong>Error</strong></p>
+      <ul id="parseErrors" class="message-list"></ul>
+    </div>
+
+    <div class="panel">
+      <p class="output-label">random-sets.json</p>
+      <textarea id="jsonOutput" readonly></textarea>
+    </div>
+
+    <div class="panel">
+      <p class="output-label">teams.ts</p>
+      <textarea id="teamsOutput" readonly></textarea>
+    </div>
+
+  </div>
+
+  <script>
+    const elements = {
+      inputText: document.getElementById('inputText'),
+      generateButton: document.getElementById('generateButton'),
+      clearButton: document.getElementById('clearButton'),
+      loadExampleButton: document.getElementById('loadExampleButton'),
+      errorPanel: document.getElementById('errorPanel'),
+      parseErrors: document.getElementById('parseErrors'),
+      jsonOutput: document.getElementById('jsonOutput'),
+      teamsOutput: document.getElementById('teamsOutput'),
+    };
+
+    function normalizeToken(value) {
+      return String(value || '')
+        .toLowerCase()
+        .replace(/[-\s]+/g, '');
+    }
+
+    function parseInput(text) {
+      const lines = text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'));
+
+      const records = [];
+      const errors = [];
+
+      lines.forEach((line, index) => {
+        const parts = line.split(':').map((part) => part.trim());
+        if (parts.length < 5) {
+          errors.push(`Line ${index + 1}: expected at least 5 fields separated by ':'`);
+          return;
+        }
+
+        const [species, role, levelText, ability, item, ...moves] = parts;
+        if (!species) {
+          errors.push(`Line ${index + 1}: missing species`);
+        }
+        const level = Number(levelText);
+        if (!Number.isInteger(level) || level < 1 || level > 9999) {
+          errors.push(`Line ${index + 1}: invalid level '${levelText}'`);
+        }
+        if (!ability) {
+          errors.push(`Line ${index + 1}: missing ability`);
+        }
+        if (!moves.length || moves.length < 4) {
+          errors.push(`Line ${index + 1}: missing or too small movepool`);
+        }
+
+        records.push({
+          species,
+          role,
+          level,
+          ability,
+          item,
+          moves: moves.filter(Boolean),
+          lineNumber: index + 1,
+        });
+      });
+
+      return { records, errors };
+    }
+
+    function buildTeams(records) {
+      return records
+        .filter((record) => record.item && record.item.trim())
+        .map((record) => {
+          const speciesKey = normalizeToken(record.species);
+          return `if (species.id === '${speciesKey}' && role === '${record.role}') return '${record.item}';`;
+        });
+    }
+
+    function renderErrorPanel(messages) {
+      elements.errorPanel.classList.toggle('hidden', messages.length === 0);
+      elements.parseErrors.innerHTML = messages
+        .map((message) => `<li>${message}</li>`)
+        .join('');
+    }
+
+    function formatConvertedOutput(recordsMap) {
+      const lines = [];
+      Object.keys(recordsMap).forEach((speciesKey) => {
+        const species = recordsMap[speciesKey];
+        lines.push(`"${speciesKey}": {`);
+        lines.push(`        "level": ${species.level},`);
+        lines.push(`        "sets": [`);
+
+        species.sets.forEach((set) => {
+          lines.push(`            {`);
+          lines.push(`                "role": ${JSON.stringify(set.role)},`);
+          lines.push(`                "movepool": [${set.movepool.map(JSON.stringify).join(', ')}],`);
+          lines.push(`                "abilities": [${set.abilities.map(JSON.stringify).join(', ')}],`);
+          lines.push(`            },`);
+        });
+
+        lines.push(`        ]`);
+        lines.push(`    },`);
+      });
+      return lines.join('\n') + '\n';
+    }
+
+    function clearOutputs() {
+      elements.jsonOutput.value = '';
+      elements.teamsOutput.value = '';
+    }
+
+    function convertRecords(records) {
+      const grouped = {};
+
+      records.forEach((record) => {
+        const speciesKey = normalizeToken(record.species);
+        const abilities = record.ability
+          .split(',')
+          .map((abilityText) => abilityText.trim())
+          .filter(Boolean);
+
+        if (!grouped[speciesKey]) {
+          grouped[speciesKey] = {
+            level: record.level,
+            sets: [],
+          };
+        }
+
+        grouped[speciesKey].sets.push({
+          role: record.role,
+          movepool: record.moves.filter(Boolean),
+          abilities,
+        });
+      });
+
+      return grouped;
+    }
+
+    function generateFromInput() {
+      const text = elements.inputText.value;
+      const { records, errors } = parseInput(text);
+      renderErrorPanel(errors);
+
+      if (errors.length) {
+        clearOutputs();
+        return;
+      }
+
+      const converted = convertRecords(records);
+      const teamLines = buildTeams(records);
+      elements.jsonOutput.value = formatConvertedOutput(converted);
+      elements.teamsOutput.value = teamLines.join('\n');
+    }
+
+    elements.generateButton.addEventListener('click', generateFromInput);
+    elements.clearButton.addEventListener('click', () => {
+      elements.inputText.value = '';
+      clearOutputs();
+      renderErrorPanel([]);
+    });
+    elements.loadExampleButton.addEventListener('click', () => {
+      elements.inputText.value = `Charizard:Fast Attacker:85:Blaze:Sitrus Berry:Earthquake:Flamethrower:Focus Blast:Hurricane:Will-O-Wisp\nCharizard:Setup Sweeper:85:Blaze,Solar Power:Heavy-Duty Boots:Dragon Dance:Earthquake:Flare Blitz:Outrage:Swords Dance`;
+      clearOutputs();
+      renderErrorPanel([]);
+    });
+  </script>
+</body>
+</html>
