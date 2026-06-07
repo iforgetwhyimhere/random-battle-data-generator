@@ -240,13 +240,13 @@
         const speciesKey = normalizeToken(record.species);
         if (!grouped[speciesKey]) {
           grouped[speciesKey] = {
-            level: 85,
+            level: 85, // Edit to set the level of your sets
             sets: [],
           };
         }
 
         grouped[speciesKey].sets.push({
-          role: 'Fast Attacker',
+          role: 'Fast Attacker', // Role name
           movepool: record.moves,
           abilities: record.abilities,
         });

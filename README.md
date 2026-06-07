@@ -2,7 +2,7 @@
 
 This generator comes with two indexes.
 `index.html` uses a custom input, and allows multiple Abilities and >4 moves per set.
-`index-exact.html` uses the teambuilder's export to be more convienent, but only allows four moves, one Ability, and one set (Fast Attacker).
+`index-exact.html` uses the teambuilder's export to be more convienent, but only allows four moves, one Ability, and one set (Fast Attacker), at a set level (85). The level and role name can be customized at lines #243 and #249.
 
 ### For both:
 
