@@ -219,8 +219,8 @@
           lines.push(`            {`);
           lines.push(`                "role": ${JSON.stringify(set.role)},`);
           lines.push(`                "movepool": [${set.movepool.map(JSON.stringify).join(', ')}],`);
-          lines.push(`                "abilities": [${set.abilities.map(JSON.stringify).join(', ')}],`);
-          lines.push(`            },`);
+          lines.push(`                "abilities": [${set.abilities.map(JSON.stringify).join(', ')}]`);
+          lines.push(`            }`);
         });
 
         lines.push(`        ]`);
