@@ -227,6 +227,18 @@
     color: var(--text-faint);
   }
 
+  button.role-toggle {
+    all: unset;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    padding: 4px 7px;
+  }
+  button.role-toggle:hover { color: var(--text); border-color: var(--accent); }
+  button.role-toggle.enabled { color: var(--accent-strong); border-color: var(--accent); }
+
   textarea {
     width: 100%;
     min-height: 420px;
@@ -371,6 +383,7 @@
     <section class="panel">
       <div class="panel-head">
         <span class="label">Paste teambuilder export</span>
+        <button class="role-toggle" id="roleToggle" type="button" aria-pressed="false">blank roles: off</button>
       </div>
       <textarea id="input" spellcheck="false" placeholder=
       "(do they know they have to paste something first?)"
@@ -417,6 +430,14 @@
   btnDark.addEventListener('click', function () { setTheme('dark'); });
   btnLight.addEventListener('click', function () { setTheme('light'); });
 
+  var roleToggle = document.getElementById('roleToggle');
+  roleToggle.addEventListener('click', function () {
+    allowBlankRoles = !allowBlankRoles;
+    roleToggle.setAttribute('aria-pressed', String(allowBlankRoles));
+    roleToggle.classList.toggle('enabled', allowBlankRoles);
+    roleToggle.textContent = 'blank roles: ' + (allowBlankRoles ? 'on' : 'off');
+  });
+
   // ---------- constants ----------
   var ALLOWED_ROLES = new Set([
     '', 'Fast Attacker', 'Setup Sweeper', 'Wallbreaker', 'Tera Blast user',
@@ -427,7 +448,8 @@
     'Dynamax User'
   ]);
 
-  var DEFAULT_LEVEL = 100;
+  var DEFAULT_LEVEL = 80;
+  var allowBlankRoles = false;
 
   function normalizeSpecies(s) {
     return s.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -476,6 +498,9 @@
     if (!species) {
       throw new Error(blockLabel + ': could not read a species name from "' + line + '"');
     }
+    if (!role && !allowBlankRoles) {
+      throw new Error(blockLabel + ' (' + species + '): role name cannot be blank. (switch "blank roles" on if you really want it blank.)');
+    }
     if (!ALLOWED_ROLES.has(role)) {
       throw new Error(blockLabel + ' (' + species + '): "' + role + '" is not a recognized role.');
     }
@@ -518,7 +543,7 @@
           var lvl = parseInt(line.replace(/^Level:\s*/i, ''), 10);
           if (!isNaN(lvl)) level = lvl;
         } else {
-          // EVs / IVs / Nature / Shiny / anything else — ignored intentionally
+          // EVs / IVs / Nature / shiny / anything else silently ignored
         }
       }
 
@@ -537,7 +562,7 @@
         var dupe = existing.sets.some(function (s) { return s.role === head.role; });
         if (dupe) {
           throw new Error(blockLabel + ' (' + head.species + '): duplicate role "' +
-            (head.role || '(none)') + '" — each species can only have one set per role.');
+            (head.role || '(none)') + '" - species can have only one set per role.');
         }
       }
 
@@ -554,7 +579,7 @@
       totalSets += 1;
     });
 
-    if (!speciesOrder.length) throw new Error('No sets were found in the pasted text.');
+    if (!speciesOrder.length) throw new Error('you put improper sets or no sets at all');
 
     return {
       order: speciesOrder,
@@ -565,43 +590,83 @@
 
   // ---------- renderers ----------
   function renderJSON(parsed) {
-    var lines = [];
-    parsed.order.forEach(function (id) {
+    var lines = ['{'];
+    parsed.order.forEach(function (id, speciesIndex) {
       var data = parsed.map[id];
       lines.push('\t"' + id + '": {');
-      lines.push('        "level": ' + data.level + ',');
-      lines.push('        "sets": [');
+      lines.push('\t\t"level": ' + data.level + ',');
+      lines.push('\t\t"sets": [');
       data.sets.forEach(function (set, i) {
         var hasAbilities = set.abilities.length > 0;
         var hasTera = set.teraTypes.length > 0;
-        lines.push('            {');
-        lines.push('                "role": ' + JSON.stringify(set.role) + ',');
-        lines.push('                "movepool": ' + jsonArr(set.movepool) + (hasAbilities || hasTera ? ',' : ''));
+        lines.push('\t\t\t{');
+        lines.push('\t\t\t\t"role": ' + JSON.stringify(set.role) + ',');
+        lines.push('\t\t\t\t"movepool": ' + jsonArr(set.movepool) + (hasAbilities || hasTera ? ',' : ''));
         if (hasAbilities) {
-          lines.push('                "abilities": ' + jsonArr(set.abilities) + (hasTera ? ',' : ''));
+          lines.push('\t\t\t\t"abilities": ' + jsonArr(set.abilities) + (hasTera ? ',' : ''));
         }
         if (hasTera) {
-          lines.push('                "teraTypes": ' + jsonArr(set.teraTypes));
+          lines.push('\t\t\t\t"teraTypes": ' + jsonArr(set.teraTypes));
         }
-        lines.push('            }' + (i < data.sets.length - 1 ? ',' : ''));
+        lines.push('\t\t\t}' + (i < data.sets.length - 1 ? ',' : ''));
       });
-      lines.push('        ]');
-      lines.push('    },');
+      lines.push('\t\t]');
+      lines.push('\t}' + (speciesIndex < parsed.order.length - 1 ? ',' : ''));
     });
+    lines.push('}');
     return lines.join('\n');
   }
 
   function renderPriorityItems(parsed) {
     var lines = [];
+    var itemGroups = {};
+    var itemOrder = [];
+
+    // Group sets with the same single item, where possible.
     parsed.order.forEach(function (id) {
       var data = parsed.map[id];
       data.sets.forEach(function (set) {
-        set.items.forEach(function (item) {
-          lines.push("if (species.id === '" + id + "' && role === '" + esc(set.role) +
-            "') return '" + esc(item) + "';");
-        });
+        if (set.items.length === 1) {
+          var item = set.items[0];
+          if (!itemGroups[item]) {
+            itemGroups[item] = [];
+            itemOrder.push(item);
+          }
+          itemGroups[item].push({ id: id, role: set.role });
+        }
       });
     });
+
+    // Sample item pools for multi-item sets.
+    parsed.order.forEach(function (id) {
+      var data = parsed.map[id];
+      data.sets.forEach(function (set) {
+        if (set.items.length <= 1) return;
+
+        var condition = "species.id === '" + esc(id) + "' && role === '" + esc(set.role) + "'";
+        var options = set.items.map(function (item) { return "'" + esc(item) + "'"; }).join(', ');
+        lines.push('if (' + condition + ') return this.sample([' + options + ']);');
+      });
+    });
+
+    // Group all single-item sets that force the same item.
+    itemOrder.forEach(function (item) {
+      var conditions = itemGroups[item].map(function (entry) {
+        return "(species.id === '" + esc(entry.id) + "' && role === '" + esc(entry.role) + "')";
+      });
+
+      if (conditions.length === 1) {
+        lines.push('if ' + conditions[0] + " return '" + esc(item) + "';");
+      } else {
+        lines.push('if (');
+        conditions.forEach(function (condition, i) {
+          lines.push('\t' + condition + (i < conditions.length - 1 ? ' ||' : ''));
+        });
+        lines.push(") return '" + esc(item) + "';");
+      }
+    });
+
+    lines.push("else return 'Life Orb';");
     return lines.join('\n');
   }
 
