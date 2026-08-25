@@ -1,7 +1,7 @@
 ## Pokemon Showdown Random battle Data Generator
 
 This generator comes with two indexes.
-`index.html` uses a custom input, and allows multiple Abilities and >4 moves per set.
+`index-extra.html` uses a custom input, and allows multiple Abilities and >4 moves per set.
 `index-exact.html` uses the teambuilder's export to be more convienent, but only allows four moves, one Ability, and one set (Fast Attacker), at a set level (85). The level and role name can be customized at lines #243 and #249.
 
 ### For both:
@@ -17,7 +17,7 @@ To apply it, insert the string into `teams.ts` in the function `getPriorityItem(
 
 `random-sets.json` is easy enough, it can theoretically be renamed anything and just contains the data for your mons.
 
-### FORMAT (for `index.html`)
+### FORMAT (for `index-extra.html`)
 
 `POKEMON-FORME:ROLE:LEVEL:ABILITY:ITEM:MOVE1:MOVE2:MOVE3:MOVE4`...
 
