@@ -562,6 +562,9 @@
         speciesOrder.push(id);
       } else {
         var existing = speciesMap[id];
+        if (allowBlankRoles) {
+          throw new Error(blockLabel + ' (' + head.species + '): a species can only have one set when blank roles are used.');
+        }
         if (existing.level !== level) {
           throw new Error(blockLabel + ' (' + head.species + '): level ' + level +
             ' does not match the level (' + existing.level + ') already set for this species.');
@@ -569,7 +572,7 @@
         var dupe = existing.sets.some(function (s) { return s.role === head.role; });
         if (dupe) {
           throw new Error(blockLabel + ' (' + head.species + '): duplicate role "' +
-            (head.role || '(none)') + '" - species can have only one set per role.');
+            (head.role || '(none)') + '": a species can have only one set per role.');
         }
       }
 
@@ -607,7 +610,7 @@
         var hasAbilities = set.abilities.length > 0;
         var hasTera = set.teraTypes.length > 0;
         lines.push('\t\t\t{');
-        lines.push('\t\t\t\t"role": ' + JSON.stringify(set.role) + ',');
+        if (set.role) lines.push('\t\t\t\t"role": ' + JSON.stringify(set.role) + ',');
         lines.push('\t\t\t\t"movepool": ' + jsonArr(set.movepool) + (hasAbilities || hasTera ? ',' : ''));
         if (hasAbilities) {
           lines.push('\t\t\t\t"abilities": ' + jsonArr(set.abilities) + (hasTera ? ',' : ''));
@@ -622,6 +625,13 @@
     });
     lines.push('}');
     return lines.join('\n');
+  }
+
+  // check species and enforce no dupes in blank role mode
+  function setCondition(id, role) {
+    var cond = "species.id === '" + esc(id) + "'";
+    if (!allowBlankRoles) cond += " && role === '" + esc(role) + "'";
+    return cond;
   }
 
   function renderPriorityItems(parsed) {
@@ -650,7 +660,7 @@
       data.sets.forEach(function (set) {
         if (set.items.length <= 1) return;
 
-        var condition = "species.id === '" + esc(id) + "' && role === '" + esc(set.role) + "'";
+        var condition = setCondition(id, set.role);
         var options = set.items.map(function (item) { return "'" + esc(item) + "'"; }).join(', ');
         lines.push('if (' + condition + ') return this.sample([' + options + ']);');
       });
@@ -659,7 +669,7 @@
     // Group all single-item sets that force the same item.
     itemOrder.forEach(function (item) {
       var conditions = itemGroups[item].map(function (entry) {
-        return "(species.id === '" + esc(entry.id) + "' && role === '" + esc(entry.role) + "')";
+        return '(' + setCondition(entry.id, entry.role) + ')';
       });
 
       if (conditions.length === 1) {
