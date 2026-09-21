@@ -1,8 +1,18 @@
 ## Pokemon Showdown Random battle Data Generator
 
-I'm just going to assume you know enough about how Random Battles work. You put in the data and get out the data.
+Input teambuilder exports from Pokemon Showdown to convert them to valid JSON data for Random Battle team generation.
 
-### EXAMPLE (with more than 4 moves, 1 item, 1 ability)
+### Breakdown
+
+```
+[role name] ([species]) @ [items]
+Ability: [abilities]
+- [move]
+- [move]
+- [move]
+- [move]
+etc...
+```
 
 ```
 Staller (Shuckle) @ Aguav Berry, Leftovers 
@@ -18,3 +28,7 @@ IVs: 0 Atk
 ```
 
 Any lines outside of Role, Pokemon, Item(s), Ability(s), and Moves are ignored.
+
+To allow nicknames (the role name) to be blank, just check the "no roles" option above the input box.
+
+If the level is not specified, it will default to 80. You can specify 100 or edit var `DEFAULT_LEVEL` to change this.

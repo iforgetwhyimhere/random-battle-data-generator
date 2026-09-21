@@ -4,25 +4,28 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Random Battle Data Converer</title>
+<title>Randbats Data</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f151b;
-    --bg-grid: #131b22;
-    --surface: #242424;
-    --surface-2: #2d2d2d;
-    --border: #4a4a4a;
-    --border-soft: #3b3b3b;
-    --text: #e8eef4;
-    --text-dim: #8ca0b3;
-    --text-faint: #5a6c7c;
-    --accent: #4fd1b3;
-    --accent-strong: #7ee6cc;
+    color-scheme: dark;
+    --bg: #000000;
+    --bg-grid: #000000;
+    --surface: #000000;
+    --surface-2: #000000;
+    --border: #3a4266;
+    --border-soft: #2a3150;
+    --text: #eceffa;
+    --text-dim: #b0b8d6;
+    --text-faint: #8f98bd;
+    --accent: #4f5fe0;
+    --accent-strong: #4351c8;
+    --accent-text: #a3aeff;
+    --on-accent: #ffffff;
     --accent-2: #f2a65a;
-    --danger: #ff7a72;
+    --danger: #ff8a82;
     --radius: 0;
     --radius-sm: 0;
     --mono: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
@@ -31,19 +34,22 @@
   }
 
   html[data-theme="light"] {
-    --bg: #eef2f1;
-    --bg-grid: #e6ebe9;
+    color-scheme: light;
+    --bg: #f3f4fa;
+    --bg-grid: #eceef7;
     --surface: #ffffff;
-    --surface-2: #f4f7f6;
-    --border: #d5dedb;
-    --border-soft: #e0e7e4;
-    --text: #16211f;
-    --text-dim: #52645f;
-    --text-faint: #8a9994;
-    --accent: #178a72;
-    --accent-strong: #0f6b58;
-    --accent-2: #c07429;
-    --danger: #c8362c;
+    --surface-2: #eef0fa;
+    --border: #c9cee3;
+    --border-soft: #dde1f0;
+    --text: #1a1f36;
+    --text-dim: #454d72;
+    --text-faint: #63698c;
+    --accent: #4a55d6;
+    --accent-strong: #3841b8;
+    --accent-text: #3a44b8;
+    --on-accent: #ffffff;
+    --accent-2: #9a4f08;
+    --danger: #b8281f;
     --shadow: none;
   }
 
@@ -58,7 +64,7 @@
     transition: background-color .25s ease, color .25s ease;
   }
 
-  a { color: var(--accent-strong); }
+  a { color: var(--accent-text); }
 
   .wrap {
     max-width: 1180px;
@@ -93,7 +99,7 @@
     justify-content: center;
     font-family: var(--mono);
     font-weight: 700;
-    color: #0d1512;
+    color: var(--on-accent);
     font-size: 15px;
     flex: none;
     box-shadow: none;
@@ -178,7 +184,7 @@
   }
   .theme-toggle button.active {
     background: var(--accent);
-    color: #0d1512;
+    color: var(--on-accent);
     font-weight: 600;
   }
 
@@ -236,13 +242,13 @@
     border: 1px solid var(--border);
     padding: 4px 7px;
   }
-  button.role-toggle:hover { color: var(--text); border-color: var(--accent); }
-  button.role-toggle.enabled { color: var(--accent-strong); border-color: var(--accent); }
+  button.role-toggle:hover { color: var(--text); border-color: var(--accent-text); }
+  button.role-toggle.enabled { color: var(--accent-2); border-color: var(--accent-2); }
 
   textarea {
     width: 100%;
     min-height: 420px;
-    resize: vertical;
+    resize: none;
     border: none;
     outline: none;
     background: transparent;
@@ -278,7 +284,7 @@
     font-weight: 600;
     font-size: 13px;
     letter-spacing: 0.02em;
-    color: #0d1512;
+    color: var(--on-accent);
     background: var(--accent);
     padding: 10px 18px;
     border-radius: 0;
@@ -314,7 +320,7 @@
     font-family: var(--mono);
     font-size: 20px;
     font-weight: 600;
-    color: var(--accent-strong);
+    color: var(--accent-text);
   }
   .stat .l {
     font-family: var(--mono);
@@ -349,8 +355,8 @@
     padding: 5px 10px;
     border-radius: 0;
   }
-  .copy-btn:hover { color: var(--text); border-color: var(--accent); }
-  .copy-btn.copied { color: var(--accent-strong); border-color: var(--accent); }
+  .copy-btn:hover { color: var(--text); border-color: var(--accent-text); }
+  .copy-btn.copied { color: var(--accent-text); border-color: var(--accent); }
 
   footer {
     margin-top: 34px;
@@ -373,8 +379,8 @@
     </div>
     <div class="header-right">
       <div class="theme-toggle" role="group" aria-label="Theme">
-        <button id="btnDark" class="active" type="button">i like my eyes</button>
-        <button id="btnLight" type="button">i hate my eyes</button>
+        <button id="btnDark" class="active" type="button">Dark</button>
+        <button id="btnLight" type="button">Light</button>
       </div>
     </div>
   </header>
@@ -382,14 +388,14 @@
   <main>
     <section class="panel">
       <div class="panel-head">
-        <span class="label">Paste teambuilder export</span>
-        <button class="role-toggle" id="roleToggle" type="button" aria-pressed="false">blank roles: off</button>
+        <span class="label">Teambuilder export</span>
+        <button class="role-toggle" id="roleToggle" type="button" aria-pressed="false">no roles: off</button>
       </div>
       <textarea id="input" spellcheck="false" placeholder=
-      "(do they know they have to paste something first?)"
+      "paste export here"
       ></textarea>
       <div class="input-footer">
-        <button class="scan" id="scanBtn" type="button">insert clever remark about clicking the button</button>
+        <button class="scan" id="scanBtn" type="button">Convert</button>
       </div>
     </section>
 
@@ -399,15 +405,15 @@
           <span class="label">random-sets.json</span>
           <button class="copy-btn" data-target="out1">copy</button>
         </div>
-        <pre class="output" id="out1"><span class="placeholder">chat gpt make me random battle sets for my mod</span></pre>
+        <pre class="output" id="out1"><span class="placeholder">Set output...</span></pre>
       </div>
 
       <div class="panel">
         <div class="panel-head">
-          <span class="label">teams.ts.getPriorityItem()</span>
+          <span class="label">teams.ts#getPriorityItem()</span>
           <button class="copy-btn" data-target="out2">copy</button>
         </div>
-        <pre class="output" id="out2"><span class="placeholder">getPriorityItem()? nah let getItem() do the work for me</span></pre>
+        <pre class="output" id="out2"><span class="placeholder">If you want to hardcode items, use this box</span></pre>
       </div>
     </section>
   </main>
@@ -435,7 +441,7 @@
     allowBlankRoles = !allowBlankRoles;
     roleToggle.setAttribute('aria-pressed', String(allowBlankRoles));
     roleToggle.classList.toggle('enabled', allowBlankRoles);
-    roleToggle.textContent = 'blank roles: ' + (allowBlankRoles ? 'on' : 'off');
+    roleToggle.textContent = 'no roles: ' + (allowBlankRoles ? 'on' : 'off');
   });
 
   // ---------- constants ----------
@@ -447,6 +453,7 @@
     'Z-Move user', 'Staller', 'Spinner', 'Generalist', 'Berry Sweeper', 'Thief user', 'Imprisoner',
     'Dynamax User'
   ]);
+  // ^ edit if you have custom roles you need to build
 
   var DEFAULT_LEVEL = 80;
   var allowBlankRoles = false;
@@ -499,7 +506,7 @@
       throw new Error(blockLabel + ': could not read a species name from "' + line + '"');
     }
     if (!role && !allowBlankRoles) {
-      throw new Error(blockLabel + ' (' + species + '): role name cannot be blank. (switch "blank roles" on if you really want it blank.)');
+      throw new Error(blockLabel + ' (' + species + '): role name cannot be blank. (switch "no roles" on if you really want it blank.)');
     }
     if (!ALLOWED_ROLES.has(role)) {
       throw new Error(blockLabel + ' (' + species + '): "' + role + '" is not a recognized role.');
@@ -512,7 +519,7 @@
   // ---------- full parse ----------
   function parseExport(raw) {
     var text = raw.replace(/\r\n/g, '\n').trim();
-    if (!text) throw new Error('what did you think was going to happen?');
+    if (!text) throw new Error('You didn\'t paste any sets.');
 
     var blocks = text.split(/\n\s*\n/).map(function (b) { return b.trim(); }).filter(Boolean);
     var speciesOrder = [];
@@ -579,7 +586,7 @@
       totalSets += 1;
     });
 
-    if (!speciesOrder.length) throw new Error('you put improper sets or no sets at all');
+    if (!speciesOrder.length) throw new Error('No species were detected.');
 
     return {
       order: speciesOrder,
