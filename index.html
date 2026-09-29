@@ -233,6 +233,11 @@
     color: var(--text-faint);
   }
 
+  .toggle-group {
+    display: flex;
+    gap: 6px;
+  }
+
   button.role-toggle {
     all: unset;
     cursor: pointer;
@@ -389,7 +394,10 @@
     <section class="panel">
       <div class="panel-head">
         <span class="label">Teambuilder export</span>
-        <button class="role-toggle" id="roleToggle" type="button" aria-pressed="false">no roles: off</button>
+        <div class="toggle-group">
+          <button class="role-toggle" id="roleToggle" type="button" aria-pressed="false">no roles: off</button>
+          <button class="role-toggle" id="itemsToggle" type="button" aria-pressed="false">items in json: off</button>
+        </div>
       </div>
       <textarea id="input" spellcheck="false" placeholder=
       "paste export here"
@@ -444,6 +452,14 @@
     roleToggle.textContent = 'no roles: ' + (allowBlankRoles ? 'on' : 'off');
   });
 
+  var itemsToggle = document.getElementById('itemsToggle');
+  itemsToggle.addEventListener('click', function () {
+    itemsInJSON = !itemsInJSON;
+    itemsToggle.setAttribute('aria-pressed', String(itemsInJSON));
+    itemsToggle.classList.toggle('enabled', itemsInJSON);
+    itemsToggle.textContent = 'items in json: ' + (itemsInJSON ? 'on' : 'off');
+  });
+
   // ---------- constants ----------
   var ALLOWED_ROLES = new Set([
     '', 'Fast Attacker', 'Setup Sweeper', 'Wallbreaker', 'Tera Blast user',
@@ -457,6 +473,7 @@
 
   var DEFAULT_LEVEL = 80;
   var allowBlankRoles = false;
+  var itemsInJSON = false;
 
   function normalizeSpecies(s) {
     return s.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -607,17 +624,17 @@
       lines.push('\t\t"level": ' + data.level + ',');
       lines.push('\t\t"sets": [');
       data.sets.forEach(function (set, i) {
-        var hasAbilities = set.abilities.length > 0;
-        var hasTera = set.teraTypes.length > 0;
+        var fields = [];
+        fields.push('"movepool": ' + jsonArr(set.movepool));
+        if (set.abilities.length) fields.push('"abilities": ' + jsonArr(set.abilities));
+        if (set.teraTypes.length) fields.push('"teraTypes": ' + jsonArr(set.teraTypes));
+        if (itemsInJSON && set.items.length) fields.push('"items": ' + jsonArr(set.items));
+
         lines.push('\t\t\t{');
         if (set.role) lines.push('\t\t\t\t"role": ' + JSON.stringify(set.role) + ',');
-        lines.push('\t\t\t\t"movepool": ' + jsonArr(set.movepool) + (hasAbilities || hasTera ? ',' : ''));
-        if (hasAbilities) {
-          lines.push('\t\t\t\t"abilities": ' + jsonArr(set.abilities) + (hasTera ? ',' : ''));
-        }
-        if (hasTera) {
-          lines.push('\t\t\t\t"teraTypes": ' + jsonArr(set.teraTypes));
-        }
+        fields.forEach(function (f, fi) {
+          lines.push('\t\t\t\t' + f + (fi < fields.length - 1 ? ',' : ''));
+        });
         lines.push('\t\t\t}' + (i < data.sets.length - 1 ? ',' : ''));
       });
       lines.push('\t\t]');
@@ -695,7 +712,9 @@
     try {
       var parsed = parseExport(input.value);
       out1.textContent = renderJSON(parsed);
-      out2.textContent = renderPriorityItems(parsed) || 'sir you forgot your items';
+      out2.textContent = itemsInJSON
+        ? 'Item in JSON enabled'
+        : (renderPriorityItems(parsed) || 'No items found');
     } catch (err) {
       alert(err.message);
     }
