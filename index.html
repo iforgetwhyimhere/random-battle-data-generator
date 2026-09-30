@@ -700,7 +700,8 @@
       }
     });
 
-    lines.push("else return 'Life Orb';");
+    lines.push("// Fallback");
+    lines.push("return 'Life Orb';");
     return lines.join('\n');
   }
 
