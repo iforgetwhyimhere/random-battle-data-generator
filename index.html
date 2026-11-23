@@ -398,6 +398,7 @@
         <div class="toggle-group">
           <button class="role-toggle" id="roleToggle" type="button" aria-pressed="false">no roles: off</button>
           <button class="role-toggle" id="itemsToggle" type="button" aria-pressed="false">items in json: off</button>
+          <button class="role-toggle" id="rolecheckToggle" type="button" aria-pressed="false">skip role check: off</button>
         </div>
       </div>
       <textarea id="input" spellcheck="false" placeholder=
@@ -461,6 +462,14 @@
     itemsToggle.textContent = 'items in json: ' + (itemsInJSON ? 'on' : 'off');
   });
 
+  var rolecheckToggle = document.getElementById('rolecheckToggle');
+  rolecheckToggle.addEventListener('click', function () {
+    noRoleChecks = !noRoleChecks;
+    rolecheckToggle.setAttribute('aria-pressed', String(noRoleChecks));
+    rolecheckToggle.classList.toggle('enabled', noRoleChecks);
+    rolecheckToggle.textContent = 'skip role check: ' + (noRoleChecks ? 'on' : 'off');
+  });
+
   // ---------- constants ----------
   var ALLOWED_ROLES = new Set([
     '', 'Fast Attacker', 'Setup Sweeper', 'Wallbreaker', 'Tera Blast user',
@@ -475,6 +484,8 @@
   var DEFAULT_LEVEL = 80;
   var allowBlankRoles = false;
   var itemsInJSON = false;
+  var noRoleChecks = false;
+  const problems = [];
 
   function normalizeSpecies(s) {
     return s.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -508,7 +519,7 @@
       itemsPart = line.slice(atIdx + 3).trim();
     }
 
-    // strip trailing gender marker (M) / (F)
+    // strip gender marker (M) / (F)
     namePart = namePart.replace(/\s*\((M|F)\)\s*$/i, '').trim();
 
     var role = '';
@@ -521,13 +532,12 @@
     }
 
     if (!species) {
-      throw new Error(blockLabel + ': could not read a species name from "' + line + '"');
+      problems.push(blockLabel + ': could not read a species name from "' + line + '"');
     }
     if (!role && !allowBlankRoles) {
-      throw new Error(blockLabel + ' (' + species + '): role name cannot be blank. (switch "no roles" on if you really want it blank.)');
-    }
-    if (!ALLOWED_ROLES.has(role)) {
-      throw new Error(blockLabel + ' (' + species + '): "' + role + '" is not a recognized role.');
+      problems.push(blockLabel + ' (' + species + '): role name cannot be blank. (switch "no roles" on if you really want it blank.)');
+    } else if (!ALLOWED_ROLES.has(role) && !noRoleChecks) {
+      problems.push(blockLabel + ' (' + species + '): "' + role + '" is not a recognized role. (switch "skip role check" on if you want to silence this error.)');
     }
 
     var items = itemsPart ? splitList(itemsPart) : [];
@@ -536,6 +546,8 @@
 
   // ---------- full parse ----------
   function parseExport(raw) {
+    problems.length = 0;
+
     var text = raw.replace(/\r\n/g, '\n').trim();
     if (!text) throw new Error('You didn\'t paste any sets.');
 
@@ -550,6 +562,8 @@
       var blockLabel = 'Set ' + (bi + 1);
 
       var head = parseHeader(lines[0], blockLabel);
+      if (!head.species) return; // :(
+
       var abilities = [];
       var teraTypes = [];
       var moves = [];
@@ -581,15 +595,15 @@
       } else {
         var existing = speciesMap[id];
         if (allowBlankRoles) {
-          throw new Error(blockLabel + ' (' + head.species + '): a species can only have one set when blank roles are used.');
+          problems.push(blockLabel + ' (' + head.species + '): a species can only have one set when blank roles are used.');
         }
         if (existing.level !== level) {
-          throw new Error(blockLabel + ' (' + head.species + '): level ' + level +
+          problems.push(blockLabel + ' (' + head.species + '): level ' + level +
             ' does not match the level (' + existing.level + ') already set for this species.');
         }
         var dupe = existing.sets.some(function (s) { return s.role === head.role; });
         if (dupe) {
-          throw new Error(blockLabel + ' (' + head.species + '): duplicate role "' +
+          problems.push(blockLabel + ' (' + head.species + '): duplicate role "' +
             (head.role || '(none)') + '": a species can have only one set per role.');
         }
       }
@@ -606,6 +620,14 @@
       totalItems += head.items.length;
       totalSets += 1;
     });
+
+    // show paste's problems
+    if (problems.length) {
+      throw new Error(
+        problems.length + ' problem' + (problems.length === 1 ? '' : 's') + ' found:\n\n' +
+        problems.join('\n')
+      );
+    }
 
     if (!speciesOrder.length) throw new Error('No species were detected.');
 
